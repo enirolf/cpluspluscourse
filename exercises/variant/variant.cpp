@@ -10,32 +10,28 @@ Two solutions are provided :
 
 #include <iostream>
 #include <memory>
+#include <variant>
 #include <vector>
 
-struct Particle {
-  virtual void print() const = 0;
-  virtual ~Particle() = default;
+struct Electron {
+  void print() const { std::cout << "E\n"; }
 };
 
-struct Electron : Particle {
-  void print() const override { std::cout << "E\n"; }
+struct Proton {
+  void print() const { std::cout << "P\n"; }
 };
 
-struct Proton : Particle {
-  void print() const override { std::cout << "P\n"; }
-};
-
-struct Neutron : Particle {
-  void print() const override { std::cout << "N\n"; }
+struct Neutron {
+  void print() const { std::cout << "N\n"; }
 };
 
 int main() {
-  std::vector<std::unique_ptr<Particle>> ps;
-  ps.push_back(std::make_unique<Electron>());
-  ps.push_back(std::make_unique<Proton>());
-  ps.push_back(std::make_unique<Neutron>());
+  std::vector<std::variant<Electron, Proton, Neutron>> ps;
+  ps.push_back(Electron{});
+  ps.push_back(Proton{});
+  ps.push_back(Neutron{});
 
   for (auto const &p : ps) {
-    p->print();
+    std::visit([](auto &p){ p.print(); }, p);
   }
 }

@@ -52,3 +52,4 @@ private:
 };
 
 using Complex = Complex_t<>;
+using ComplexComplex = Complex_t<Complex>;

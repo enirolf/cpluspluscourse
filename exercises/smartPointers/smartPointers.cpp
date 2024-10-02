@@ -3,12 +3,12 @@
 #include <cstdlib>
 #include <ctime>
 #include <functional>
-#include <stdexcept>
 #include <iostream>
+#include <memory>
 #include <numeric>
 #include <span>
+#include <stdexcept>
 #include <vector>
-
 
 /*
  * Please fix all memory leaks / ownership problems using smart pointers.
@@ -29,7 +29,6 @@
  * - Shared ownership to data is expressed using shared_ptr.
  */
 
-
 /* --------------------------------------------------------------------------------------------
  * 1: Always use smart pointers instead of new.
  *
@@ -42,7 +41,8 @@
 
 // Note how we are using a span pointing to "double const" to ensure that the
 // data can only be read. You don't need to change anything in this function.
-double sumEntries(std::span<double const> range) {
+double sumEntries(std::span<double const> range)
+{
     // Simulate an error
     throw std::invalid_argument("Error when summing over data.");
 
@@ -53,25 +53,22 @@ double sumEntries(std::span<double const> range) {
 // sumEntries() for reading, so the ownership stays with this function. Unfortunately, something goes
 // wrong and we didn't use smart pointers.
 // Understand and fix the memory leak.
-void doStuffWithData() {
-    auto data = new std::array<double, 10000>{};
+void doStuffWithData()
+{
+    auto data = std::make_unique<std::array<double, 10000>>();
 
     sumEntries(*data);
-
-    delete data;
 }
 
-
-void problem1() {
-   try {
-       doStuffWithData();
-   } catch (const std::exception& e) {
-       std::cerr << "problem1() terminated with exception: \"" << e.what()
-               << "\" Check for memory leaks.\n";
-   }
+void problem1()
+{
+    try {
+        doStuffWithData();
+    } catch (const std::exception& e) {
+        std::cerr << "problem1() terminated with exception: \"" << e.what()
+                  << "\" Check for memory leaks.\n";
+    }
 }
-
-
 
 /* --------------------------------------------------------------------------------------------
  * 2: Storing unique_ptr in collections.
@@ -93,8 +90,9 @@ struct LargeObject {
 };
 
 // A factory function to create large objects.
-LargeObject* createLargeObject() {
-    auto object = new LargeObject();
+std::unique_ptr<LargeObject> createLargeObject()
+{
+    auto object = std::make_unique<LargeObject>();
     // Imagine there is more setup steps of "object" here
     // ...
 
@@ -103,24 +101,23 @@ LargeObject* createLargeObject() {
 
 // A function to do something with the objects.
 // Note that since we don't own the object, we don't need a smart pointer as argument.
-void changeLargeObject(LargeObject& object) {
+void changeLargeObject(LargeObject& object)
+{
     object.fData[0] = 1.;
 }
 
-void problem2() {
-    std::vector<LargeObject*> largeObjects;
+void problem2()
+{
+    std::vector<std::unique_ptr<LargeObject>> largeObjects;
 
-    for (unsigned int i=0; i < 10; ++i) {
-        auto newObj = createLargeObject();
-        largeObjects.push_back(newObj);
+    for (unsigned int i = 0; i < 10; ++i) {
+        largeObjects.push_back(createLargeObject());
     }
 
     for (const auto& obj : largeObjects) {
         changeLargeObject(*obj);
     }
 }
-
-
 
 /* --------------------------------------------------------------------------------------------
  * 3: Shared ownership.
@@ -141,8 +138,9 @@ void problem2() {
  */
 
 // This removes the element in the middle of the vector.
-void removeMiddle(std::vector<LargeObject*>& collection) {
-    auto middlePosition = collection.begin() + collection.size()/2;
+void removeMiddle(std::vector<std::shared_ptr<LargeObject>>& collection)
+{
+    auto middlePosition = collection.begin() + collection.size() / 2;
 
     // Must not delete element when erasing from collection, because it's also in the copy ...
     collection.erase(middlePosition);
@@ -151,7 +149,8 @@ void removeMiddle(std::vector<LargeObject*>& collection) {
 // This removes a random element.
 // Note that this leaks if the element happens to be the same
 // that's removed above ...
-void removeRandom(std::vector<LargeObject*>& collection) {
+void removeRandom(std::vector<std::shared_ptr<LargeObject>>& collection)
+{
     auto pos = collection.begin() + time(nullptr) % collection.size();
 
     collection.erase(pos);
@@ -160,22 +159,22 @@ void removeRandom(std::vector<LargeObject*>& collection) {
 // Do something with an element.
 // Just a dummy function, for you to figure out how to pass an object
 // managed by a shared_ptr to a function.
-void processElement(const LargeObject* /*element*/) { }
-
+void processElement(const LargeObject & /*element*/) { }
 
 // We have pointers to objects in two different collections. We work a bit with
 // the collections, and then we try to terminate leak free. Without a shared ownership
 // model, this becomes a mess.
-void problem3() {
+void problem3()
+{
     // Let's generate a vector with 10 pointers to LargeObject
-    std::vector<LargeObject*> objVector(10);
+    // std::vector<LargeObject*> objVector(10);
+    std::vector<std::shared_ptr<LargeObject>> objVector(1000);
     for (auto& ptr : objVector) {
-        ptr = new LargeObject();
+        ptr = std::make_shared<LargeObject>();
     }
 
     // Let's copy it
-    std::vector<LargeObject*> objVectorCopy(objVector);
-
+    std::vector<std::shared_ptr<LargeObject>> objVectorCopy(objVector);
 
     // Now we work with the objects:
     removeMiddle(objVector);
@@ -183,25 +182,9 @@ void problem3() {
     // ...
     // ...
     for (auto elm : objVector) {
-        processElement(elm);
-    }
-
-
-    // Now try to figure out what has to be deleted. It's a mess ...
-    // Fix using shared_ptr, so the following code becomes unnecessary:
-    for (auto objPtr : objVector) {
-        delete objPtr;
-    }
-
-    for (auto objPtr : objVectorCopy) {
-        // If the element is in the original collection, it was already deleted.
-        if (std::find(objVector.begin(), objVector.end(), objPtr) == objVector.end()) {
-            delete objPtr;
-        }
+        processElement(*elm);
     }
 }
-
-
 
 /* --------------------------------------------------------------------------------------------
  * 4: Smart pointers as class members.
@@ -249,29 +232,31 @@ void problem3() {
 
 class Owner {
 public:
-    Owner() :
-        _largeObj(new LargeObject()) { }
-
-    ~Owner() {
-        std::cout << "problem4(): Owner " << this << " is deallocating " << _largeObj << ".\n";
-        delete _largeObj;
+    Owner()
+        : _largeObj(std::make_shared<LargeObject>())
+    {
     }
 
-    const LargeObject* getData() const {
+    ~Owner()
+    {
+        std::cout << "problem4(): Owner " << this << " is deallocating " << _largeObj << ".\n";
+    }
+
+    const std::shared_ptr<LargeObject> &getData() const
+    {
         return _largeObj;
     }
 
 private:
-    LargeObject* _largeObj;
+    std::shared_ptr<LargeObject> _largeObj;
 };
 
+void problem4_1()
+{
+    std::vector<std::shared_ptr<Owner>> owners;
 
-void problem4_1() {
-    std::vector<Owner> owners;
-
-    for (int i=0; i < 5; ++i) {
-        Owner owner;
-        owners.push_back(owner);
+    for (int i = 0; i < 5; ++i) {
+        owners.push_back(std::make_shared<Owner>());
     }
 
     /* Now we have a problem:
@@ -284,27 +269,29 @@ void problem4_1() {
      */
 }
 
-
 class Observer {
 public:
-    Observer(const Owner& owner) :
-        _largeObj(owner.getData()) { }
+    Observer(const Owner& owner)
+        : _largeObj(owner.getData())
+    {
+    }
 
-    double getValue() const {
-        if (_largeObj) {
-            return _largeObj->fData[0];
+    double getValue() const
+    {
+        std::weak_ptr<LargeObject> largeObjObserver{_largeObj};
+        if (std::shared_ptr<LargeObject> largeObj = _largeObj.lock()) {
+            return largeObj->fData[0];
         }
 
         return -1.;
     }
 
 private:
-    const LargeObject* _largeObj; // We don't own this.
+    std::weak_ptr<LargeObject> _largeObj; // We don't own this.
 };
 
-
-
-void problem4_2() {
+void problem4_2()
+{
     // We directly construct 5 owners inside the vector to get around problem4_1:
     std::vector<Owner> owners(5);
 
@@ -322,16 +309,16 @@ void problem4_2() {
     for (const auto& observer : observers) {
         // Problem: We don't know if the data is alive ...
         // TODO: Fix Observer!
-        // std::cout << observer.getValue() << " ";
+        std::cout << observer.getValue() << " ";
     }
     std::cout << "\n";
 }
 
-
-int main() {
-    problem1();
+int main()
+{
+    // problem1();
     // problem2();
     // problem3();
     // problem4_1();
-    // problem4_2();
+    problem4_2();
 }

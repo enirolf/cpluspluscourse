@@ -4,7 +4,68 @@
 
 class Fraction {
  public:
-  // TODO: constructors and operators
+  Fraction(int num, int denom) : m_num(num), m_denom(denom) {
+    normalize();
+  }
+  Fraction(int num) : Fraction(num, 1) {}
+  Fraction(const Fraction &other) {
+    m_num = other.m_num;
+    m_denom = other.m_denom;
+  }
+  Fraction(Fraction &&other) noexcept : Fraction(other.m_num, other.m_num) {
+    swap(*this, other);
+  }
+  Fraction &operator=(Fraction other) noexcept {
+    swap(*this, other);
+    return *this;
+  }
+  ~Fraction() = default;
+
+  friend void swap(Fraction &left, Fraction &right) noexcept {
+    Fraction tmp = std::move(left);
+    left = std::move(right);
+    right = std::move(tmp);
+  }
+
+  friend bool operator==(Fraction const &left, Fraction const &right) {
+    return left.m_num == right.m_num && left.m_denom == right.m_denom;
+  }
+
+  friend bool operator!=(Fraction const &left, Fraction const &right) {
+    return !(left == right);
+  }
+
+  friend bool operator<(Fraction const &left, Fraction const &right) {
+    return left.m_num * right.m_denom < right.m_num * left.m_denom;
+  }
+
+  friend bool operator<=(Fraction const &left, Fraction const &right) {
+    return left < right || left == right;
+  }
+
+  friend bool operator>(Fraction const &left, Fraction const &right) {
+    return !(left <= right);
+  }
+
+  friend bool operator>=(Fraction const &left, Fraction const &right) {
+    return !(left < right);
+  }
+
+  void operator*=(Fraction const &other) {
+    m_num *= other.m_num;
+    m_denom *= other.m_denom;
+    normalize();
+  }
+
+  friend Fraction operator*(Fraction const &left, Fraction const &right) {
+    Fraction result = left;
+    result *= right;
+    return result;
+  }
+
+  friend std::ostream &operator<<(std::ostream &os, Fraction const &c) {
+    return os << std::to_string(c.m_num) << "/" << std::to_string(c.m_denom);
+  }
 
  private:
   void normalize() {
@@ -33,10 +94,6 @@ int main() {
   const Fraction three{3};
   const Fraction athird{1, 3};
 
-  // print the fractions
-  std::cout << "Three: " << three << '\n';
-  std::cout << "One third: " << athird << '\n';
-
   // multiply fraction with an int
   // the printAndCheck function requires operator<< and operator==:
   printAndCheck("One third times two", athird * 2, Fraction{2, 3});
@@ -49,7 +106,7 @@ int main() {
   // prints 1/1 instead of e.g. 3/3
   printAndCheck("Three times one third", 3 * athird, Fraction{1, 1});
 
-  // multiply in place
+  // // multiply in place
   Fraction f = athird;
   f *= 2;
   printAndCheck("One third times two", f, Fraction{2, 3});

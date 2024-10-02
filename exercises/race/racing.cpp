@@ -1,4 +1,5 @@
 #include <iostream>
+#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -15,12 +16,14 @@ constexpr unsigned int nThread = 2;
 int main() {
   int nError = 0;
 
-  for (int j = 0; j < 1000; j++) {
+  for (int j = 0; j < 100000; j++) {
     int a = 0;
 
     // Increment the variable a 100 times:
     auto inc100 = [&a](){
+      static std::mutex m;
       for (int i = 0; i < 100; ++i) {
+        std::scoped_lock lock{m};
         a++;
       }
     };

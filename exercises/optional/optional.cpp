@@ -12,14 +12,18 @@ to update `square`.
 #include <iostream>
 #include <optional>
 
-double mysqrt(double d) // TO BE MODIFIED
+std::optional<double> mysqrt(double d) // TO BE MODIFIED
 {
-  return std::sqrt(d);  // TO BE MODIFIED
+  if (d >= 0)
+    return std::sqrt(d);  // TO BE MODIFIED
+  return {};
 }
 
-double square(double d) // TO BE MODIFIED
+std::optional<double> square(std::optional<double> d) // TO BE MODIFIED
 {
-  return d * d;         // TO BE MODIFIED
+  if (d.has_value())
+    return *d * *d;         // TO BE MODIFIED
+  return {};
 }
 
 template <typename A>
